@@ -18,6 +18,7 @@ package admission
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -33,8 +34,9 @@ import (
 )
 
 var (
-	scheme = runtime.NewScheme()
-	codecs = serializer.NewCodecFactory(scheme)
+	scheme    = runtime.NewScheme()
+	codecs    = serializer.NewCodecFactory(scheme)
+	reviewGVK = admissionv1beta1.SchemeGroupVersion.WithKind("AdmissionReview")
 )
 
 func init() {
@@ -48,7 +50,6 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	reviewGVK := admissionv1beta1.SchemeGroupVersion.WithKind("AdmissionReview")
 	obj, gvk, err := codecs.UniversalDeserializer().Decode(body, &reviewGVK, &admissionv1beta1.AdmissionReview{})
 	if err != nil {
 		responsewriters.InternalError(w, req, fmt.Errorf("failed to decode body: %v", err))
@@ -60,7 +61,7 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if review.Request == nil {
-		responsewriters.InternalError(w, req, fmt.Errorf("unexpected nil request"))
+		responsewriters.InternalError(w, req, errors.New("unexpected nil request"))
 		return
 	}
 	review.Response = &admissionv1beta1.AdmissionResponse{
@@ -77,7 +78,7 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 		}
 
 	default:
-		responsewriters.InternalError(w, req, fmt.Errorf("unexpected object type: %v"))
+		responsewriters.InternalError(w, req, fmt.Errorf("unexpected object type: %v", secret))
 		return
 	}
 

@@ -25,6 +25,7 @@ import (
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -68,6 +69,23 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 		UID: review.Request.UID,
 	}
 
+	// decode object
+	if review.Request.Object.Object == nil {
+		var err error
+		review.Request.Object.Object, _, err = codecs.UniversalDeserializer().Decode(
+			review.Request.Object.Raw,
+			nil,
+			nil)
+		if err != nil {
+			review.Response.Result = &metav1.Status{
+				Message: err.Error(),
+				Status:  metav1.StatusFailure,
+			}
+			writeReview(w, review)
+			return
+		}
+	}
+
 	// TODO(immutableT) check if review.Request.Object.Object == nil
 	switch secret := review.Request.Object.Object.(type) {
 	case *corev1.Secret:
@@ -84,11 +102,16 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 
 	klog.V(2).Infof("Defaulting %s/%s in version %s", review.Request.Namespace, review.Request.Name, gvk)
 
-	// TODO(immutableT) Generate Json path instead of writing the full record.
+	// TODO(immutableT) Generate Json path - this is what has to be attached to the response.
 	// See github.com/appscode/jsonpatch or k8s.io/client-go/util/jsonpath/jsonpath
 
 	review.Response.Allowed = true
 
+	writeReview(w, review)
+}
+
+// TODO(immutableT) This could handled more concisely with k8s.io/apiserver/pkg/endpoints/handlers/responsewriters
+func writeReview(w http.ResponseWriter, review *admissionv1beta1.AdmissionReview) {
 	// TODO(immutableT) This could handled more concisely with k8s.io/apiserver/pkg/endpoints/handlers/responsewriters
 	resp, err := json.Marshal(review)
 	if err != nil {

@@ -3,21 +3,23 @@ package admission
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/google/go-cmp/cmp"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestMutation(t *testing.T) {
 	testCases := []struct {
 		desc           string
 		request        *admissionv1beta1.AdmissionReview
+		response       *admissionv1beta1.AdmissionReview
 		wantStatusCode int
 		wantError      string
 	}{
@@ -28,27 +30,45 @@ func TestMutation(t *testing.T) {
 		},
 		{
 			desc:           "empty AdmissionReview",
-			wantError:      `Internal Server Error: "/secrets": unexpected nil request`,
 			request:        &admissionv1beta1.AdmissionReview{},
 			wantStatusCode: http.StatusInternalServerError,
+			wantError:      `Internal Server Error: "/secrets": unexpected nil request`,
 		},
 		{
-			desc:      "AdmissionReview with empty AdmissionRequest",
-			wantError: `Internal Server Error: "/secrets": unexpected object type: &lt;nil&gt;`,
+			desc: "AdmissionReview with empty AdmissionRequest",
 			request: &admissionv1beta1.AdmissionReview{
 				Request: &admissionv1beta1.AdmissionRequest{},
 			},
-			wantStatusCode: http.StatusInternalServerError,
-		},
-		{
-			desc:      "AdmissionRequest with UID",
-			wantError: `Internal Server Error: "/secrets": unexpected object type: &lt;nil&gt;`,
-			request: &admissionv1beta1.AdmissionReview{
-				Request: &admissionv1beta1.AdmissionRequest{
-					UID: types.UID("1"),
+			response: &admissionv1beta1.AdmissionReview{
+				Request: &admissionv1beta1.AdmissionRequest{},
+				Response: &admissionv1beta1.AdmissionResponse{
+					Result: &metav1.Status{
+						Message: "Object 'Kind' is missing in ''",
+						Status:  metav1.StatusFailure,
+					},
 				},
 			},
-			wantStatusCode: http.StatusInternalServerError,
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			desc: "AdmissionRequest with empty Object",
+			request: &admissionv1beta1.AdmissionReview{
+				Request: &admissionv1beta1.AdmissionRequest{
+					Object: runtime.RawExtension{},
+				},
+			},
+			response: &admissionv1beta1.AdmissionReview{
+				Request: &admissionv1beta1.AdmissionRequest{
+					Object: runtime.RawExtension{},
+				},
+				Response: &admissionv1beta1.AdmissionResponse{
+					Result: &metav1.Status{
+						Message: "Object 'Kind' is missing in ''",
+						Status:  metav1.StatusFailure,
+					},
+				},
+			},
+			wantStatusCode: http.StatusOK,
 		},
 	}
 
@@ -95,6 +115,10 @@ func TestMutation(t *testing.T) {
 			err = json.Unmarshal(responseBody, got)
 			if err != nil {
 				t.Fatalf("Failed to unmarshal AdmissionReview, err: %v", err)
+			}
+
+			if diff := cmp.Diff(tt.response, got); diff != "" {
+				t.Fatalf("Mismatch in AdmissionReview (-want, +got)\n%s", diff)
 			}
 		})
 	}

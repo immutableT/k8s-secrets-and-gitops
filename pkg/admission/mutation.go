@@ -45,26 +45,12 @@ func init() {
 }
 
 func Serve(w http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
+	review, err := validateRequest(req)
 	if err != nil {
-		responsewriters.InternalError(w, req, fmt.Errorf("failed to read body: %v", err))
+		responsewriters.InternalError(w, req, err)
 		return
 	}
 
-	obj, gvk, err := codecs.UniversalDeserializer().Decode(body, &reviewGVK, &admissionv1beta1.AdmissionReview{})
-	if err != nil {
-		responsewriters.InternalError(w, req, fmt.Errorf("failed to decode body: %v", err))
-		return
-	}
-	review, ok := obj.(*admissionv1beta1.AdmissionReview)
-	if !ok {
-		responsewriters.InternalError(w, req, fmt.Errorf("unexpected GroupVersionKind: %s", gvk))
-		return
-	}
-	if review.Request == nil {
-		responsewriters.InternalError(w, req, errors.New("unexpected nil request"))
-		return
-	}
 	review.Response = &admissionv1beta1.AdmissionResponse{
 		UID: review.Request.UID,
 	}
@@ -72,10 +58,7 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 	// decode object
 	if review.Request.Object.Object == nil {
 		var err error
-		review.Request.Object.Object, _, err = codecs.UniversalDeserializer().Decode(
-			review.Request.Object.Raw,
-			nil,
-			nil)
+		review.Request.Object.Object, _, err = codecs.UniversalDeserializer().Decode(review.Request.Object.Raw, nil, nil)
 		if err != nil {
 			review.Response.Result = &metav1.Status{
 				Message: err.Error(),
@@ -100,14 +83,32 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	klog.V(2).Infof("Defaulting %s/%s in version %s", review.Request.Namespace, review.Request.Name, gvk)
-
 	// TODO(immutableT) Generate Json path - this is what has to be attached to the response.
 	// See github.com/appscode/jsonpatch or k8s.io/client-go/util/jsonpath/jsonpath
 
 	review.Response.Allowed = true
 
 	writeReview(w, review)
+}
+
+func validateRequest(req *http.Request) (*admissionv1beta1.AdmissionReview, error) {
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %v", err)
+	}
+
+	obj, gvk, err := codecs.UniversalDeserializer().Decode(body, &reviewGVK, &admissionv1beta1.AdmissionReview{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode body: %v", err)
+	}
+	review, ok := obj.(*admissionv1beta1.AdmissionReview)
+	if !ok {
+		return nil, fmt.Errorf("unexpected GroupVersionKind: %s", gvk)
+	}
+	if review.Request == nil {
+		return nil, errors.New("unexpected nil request")
+	}
+	return review, nil
 }
 
 // TODO(immutableT) This could handled more concisely with k8s.io/apiserver/pkg/endpoints/handlers/responsewriters

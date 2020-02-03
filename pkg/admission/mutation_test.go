@@ -43,7 +43,7 @@ func TestMutation(t *testing.T) {
 				Request: &admissionv1beta1.AdmissionRequest{},
 				Response: &admissionv1beta1.AdmissionResponse{
 					Result: &metav1.Status{
-						Message: "Object 'Kind' is missing in ''",
+						Message: "Request.Object.Object is nil, and the attempt to deserialize Request.Object.Raw failed with the error: Object 'Kind' is missing in ''",
 						Status:  metav1.StatusFailure,
 					},
 				},
@@ -63,7 +63,7 @@ func TestMutation(t *testing.T) {
 				},
 				Response: &admissionv1beta1.AdmissionResponse{
 					Result: &metav1.Status{
-						Message: "Object 'Kind' is missing in ''",
+						Message: "Request.Object.Object is nil, and the attempt to deserialize Request.Object.Raw failed with the error: Object 'Kind' is missing in ''",
 						Status:  metav1.StatusFailure,
 					},
 				},

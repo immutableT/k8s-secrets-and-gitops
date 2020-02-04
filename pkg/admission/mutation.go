@@ -17,10 +17,10 @@ limitations under the License.
 package admission
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
@@ -45,7 +45,7 @@ func init() {
 }
 
 func Serve(w http.ResponseWriter, req *http.Request) {
-	review, err := validateRequest(req)
+	review, gvk, err := validateRequest(req)
 	if err != nil {
 		responsewriters.InternalError(w, req, err)
 		return
@@ -53,7 +53,7 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 
 	secret := validateReview(review)
 	if review.Response.Allowed == false {
-		writeReview(w, review)
+		responsewriters.WriteObjectNegotiated(codecs, nil, gvk.GroupVersion(), w, req, http.StatusOK, review)
 		return
 	}
 
@@ -67,27 +67,27 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 	// See github.com/appscode/jsonpatch or k8s.io/client-go/util/jsonpath/jsonpath
 
 	review.Response.Allowed = true
-	writeReview(w, review)
+	responsewriters.WriteObjectNegotiated(codecs, nil, gvk.GroupVersion(), w, req, http.StatusOK, review)
 }
 
-func validateRequest(req *http.Request) (*admissionv1beta1.AdmissionReview, error) {
+func validateRequest(req *http.Request) (*admissionv1beta1.AdmissionReview, *schema.GroupVersionKind, error) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read body: %v", err)
+		return nil, nil, fmt.Errorf("failed to read body: %v", err)
 	}
 
 	obj, gvk, err := codecs.UniversalDeserializer().Decode(body, &reviewGVK, &admissionv1beta1.AdmissionReview{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode body: %v", err)
+		return nil, nil, fmt.Errorf("failed to decode body: %v", err)
 	}
 	review, ok := obj.(*admissionv1beta1.AdmissionReview)
 	if !ok {
-		return nil, fmt.Errorf("unexpected GroupVersionKind: %s", gvk)
+		return nil, nil, fmt.Errorf("unexpected GroupVersionKind: %s", gvk)
 	}
 	if review.Request == nil {
-		return nil, errors.New("unexpected nil request")
+		return nil, nil, errors.New("unexpected nil request")
 	}
-	return review, nil
+	return review, gvk, nil
 }
 
 func validateReview(review *admissionv1beta1.AdmissionReview) *corev1.Secret {
@@ -115,20 +115,5 @@ func validateReview(review *admissionv1beta1.AdmissionReview) *corev1.Secret {
 		return nil
 	} else {
 		return secret
-	}
-}
-
-// TODO(immutableT) This could handled more concisely with k8s.io/apiserver/pkg/endpoints/handlers/responsewriters
-func writeReview(w http.ResponseWriter, review *admissionv1beta1.AdmissionReview) {
-	// TODO(immutableT) This could handled more concisely with k8s.io/apiserver/pkg/endpoints/handlers/responsewriters
-	resp, err := json.Marshal(review)
-	if err != nil {
-		klog.Errorf("Can't encode response: %v", err)
-		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
-	}
-
-	if _, err := w.Write(resp); err != nil {
-		klog.Errorf("Can't write response: %v", err)
-		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 	}
 }

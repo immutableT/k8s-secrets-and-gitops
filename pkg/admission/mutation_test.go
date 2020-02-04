@@ -40,6 +40,10 @@ func TestMutation(t *testing.T) {
 				Request: &admissionv1beta1.AdmissionRequest{},
 			},
 			response: &admissionv1beta1.AdmissionReview{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       reviewGVK.Kind,
+					APIVersion: reviewGVK.GroupVersion().String(),
+				},
 				Request: &admissionv1beta1.AdmissionRequest{},
 				Response: &admissionv1beta1.AdmissionResponse{
 					Result: &metav1.Status{
@@ -58,6 +62,10 @@ func TestMutation(t *testing.T) {
 				},
 			},
 			response: &admissionv1beta1.AdmissionReview{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       reviewGVK.Kind,
+					APIVersion: reviewGVK.GroupVersion().String(),
+				},
 				Request: &admissionv1beta1.AdmissionRequest{
 					Object: runtime.RawExtension{},
 				},

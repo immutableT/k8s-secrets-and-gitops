@@ -76,6 +76,11 @@ func validateRequest(req *http.Request) (*admissionv1beta1.AdmissionReview, *sch
 		return nil, nil, fmt.Errorf("failed to read body: %v", err)
 	}
 
+	contentType := req.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		return nil, nil, fmt.Errorf("contentType=%s, expect application/json", contentType)
+	}
+
 	obj, gvk, err := codecs.UniversalDeserializer().Decode(body, &reviewGVK, &admissionv1beta1.AdmissionReview{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode body: %v", err)

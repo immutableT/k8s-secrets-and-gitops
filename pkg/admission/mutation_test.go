@@ -96,7 +96,7 @@ func TestMutation(t *testing.T) {
 			}
 
 			req := httptest.NewRequest(
-				http.MethodGet,
+				http.MethodPost,
 				"/secrets",
 				bytes.NewReader(requestBody))
 			req.Header.Add("Content-Type", "application/json")

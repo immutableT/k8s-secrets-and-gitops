@@ -1,3 +1,4 @@
 /.idea/
 /go.sum
 /pkg/admission/go.sum
+/bin/*

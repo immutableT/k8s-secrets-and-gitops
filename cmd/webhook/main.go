@@ -17,15 +17,14 @@ limitations under the License.
 package main
 
 import (
-	"net/http"
-	"os"
-	"time"
-
 	"github.com/gorilla/handlers"
 	"github.com/spf13/pflag"
 	"k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/server/options"
 	"k8s.io/component-base/cli/globalflag"
+	"net/http"
+	"os"
+	"time"
 
 	"github.com/immutableT/k8s-secrets-and-gitops/pkg/admission"
 )

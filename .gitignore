@@ -3,3 +3,5 @@
 /pkg/admission/go.sum
 /bin/*
 /etcd-data/*
+k8s-secrets-and-gitops.iml
+cmd/webhook/webhook

@@ -11,15 +11,15 @@ import (
 	"strings"
 	"testing"
 
-	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestMutation(t *testing.T) {
 	testCases := []struct {
 		desc           string
-		request        *admissionv1beta1.AdmissionReview
-		response       *admissionv1beta1.AdmissionReview
+		request        *admissionv1.AdmissionReview
+		response       *admissionv1.AdmissionReview
 		wantStatusCode int
 		wantError      string
 	}{
@@ -30,22 +30,22 @@ func TestMutation(t *testing.T) {
 		},
 		{
 			desc:           "empty AdmissionReview",
-			request:        &admissionv1beta1.AdmissionReview{},
+			request:        &admissionv1.AdmissionReview{},
 			wantStatusCode: http.StatusInternalServerError,
 			wantError:      `Internal Server Error: "/secrets": unexpected nil request`,
 		},
 		{
 			desc: "AdmissionReview with empty AdmissionRequest",
-			request: &admissionv1beta1.AdmissionReview{
-				Request: &admissionv1beta1.AdmissionRequest{},
+			request: &admissionv1.AdmissionReview{
+				Request: &admissionv1.AdmissionRequest{},
 			},
-			response: &admissionv1beta1.AdmissionReview{
+			response: &admissionv1.AdmissionReview{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       reviewGVK.Kind,
 					APIVersion: reviewGVK.GroupVersion().String(),
 				},
-				Request: &admissionv1beta1.AdmissionRequest{},
-				Response: &admissionv1beta1.AdmissionResponse{
+				Request: &admissionv1.AdmissionRequest{},
+				Response: &admissionv1.AdmissionResponse{
 					Result: &metav1.Status{
 						Message: "Request.Object.Object is nil, and the attempt to deserialize Request.Object.Raw failed with the error: Object 'Kind' is missing in ''",
 						Status:  metav1.StatusFailure,
@@ -56,22 +56,22 @@ func TestMutation(t *testing.T) {
 		},
 		{
 			desc: "AdmissionRequest with empty Object",
-			request: &admissionv1beta1.AdmissionReview{
-				Request: &admissionv1beta1.AdmissionRequest{
+			request: &admissionv1.AdmissionReview{
+				Request: &admissionv1.AdmissionRequest{
 					UID:    "705ab4f5-6393-11e8-b7cc-42010a800002",
 					Object: runtime.RawExtension{},
 				},
 			},
-			response: &admissionv1beta1.AdmissionReview{
+			response: &admissionv1.AdmissionReview{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       reviewGVK.Kind,
 					APIVersion: reviewGVK.GroupVersion().String(),
 				},
-				Request: &admissionv1beta1.AdmissionRequest{
+				Request: &admissionv1.AdmissionRequest{
 					UID:    "705ab4f5-6393-11e8-b7cc-42010a800002",
 					Object: runtime.RawExtension{},
 				},
-				Response: &admissionv1beta1.AdmissionResponse{
+				Response: &admissionv1.AdmissionResponse{
 					UID: "705ab4f5-6393-11e8-b7cc-42010a800002",
 					Result: &metav1.Status{
 						Message: "Request.Object.Object is nil, and the attempt to deserialize Request.Object.Raw failed with the error: Object 'Kind' is missing in ''",
@@ -126,7 +126,7 @@ func TestMutation(t *testing.T) {
 				return
 			}
 
-			got := &admissionv1beta1.AdmissionReview{}
+			got := &admissionv1.AdmissionReview{}
 			err = json.Unmarshal(responseBody, got)
 			if err != nil {
 				t.Fatalf("Failed to unmarshal AdmissionReview, err: %v", err)

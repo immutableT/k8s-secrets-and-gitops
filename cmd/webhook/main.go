@@ -64,7 +64,6 @@ func (o *Options) Config() (*Config, error) {
 }
 
 func main() {
-	// parse flags
 	opt := NewDefaultOptions()
 	fs := pflag.NewFlagSet("secrets-decryption-webhook", pflag.ExitOnError)
 	globalflag.AddGlobalFlags(fs, "secrets-decryption-webhook")

@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 
-	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -37,11 +37,11 @@ import (
 var (
 	scheme    = runtime.NewScheme()
 	codecs    = serializer.NewCodecFactory(scheme)
-	reviewGVK = admissionv1beta1.SchemeGroupVersion.WithKind("AdmissionReview")
+	reviewGVK = admissionv1.SchemeGroupVersion.WithKind("AdmissionReview")
 )
 
 func init() {
-	utilruntime.Must(admissionv1beta1.AddToScheme(scheme))
+	utilruntime.Must(admissionv1.AddToScheme(scheme))
 }
 
 func Serve(w http.ResponseWriter, req *http.Request) {
@@ -70,7 +70,7 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 	responsewriters.WriteObjectNegotiated(codecs, nil, gvk.GroupVersion(), w, req, http.StatusOK, review)
 }
 
-func validateRequest(req *http.Request) (*admissionv1beta1.AdmissionReview, *schema.GroupVersionKind, error) {
+func validateRequest(req *http.Request) (*admissionv1.AdmissionReview, *schema.GroupVersionKind, error) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read body: %v", err)
@@ -81,11 +81,11 @@ func validateRequest(req *http.Request) (*admissionv1beta1.AdmissionReview, *sch
 		return nil, nil, fmt.Errorf("contentType=%s, expect application/json", contentType)
 	}
 
-	obj, gvk, err := codecs.UniversalDeserializer().Decode(body, &reviewGVK, &admissionv1beta1.AdmissionReview{})
+	obj, gvk, err := codecs.UniversalDeserializer().Decode(body, &reviewGVK, &admissionv1.AdmissionReview{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode body: %v", err)
 	}
-	review, ok := obj.(*admissionv1beta1.AdmissionReview)
+	review, ok := obj.(*admissionv1.AdmissionReview)
 	if !ok {
 		return nil, nil, fmt.Errorf("unexpected GroupVersionKind: %s", gvk)
 	}
@@ -95,8 +95,8 @@ func validateRequest(req *http.Request) (*admissionv1beta1.AdmissionReview, *sch
 	return review, gvk, nil
 }
 
-func validateReview(review *admissionv1beta1.AdmissionReview) *corev1.Secret {
-	review.Response = &admissionv1beta1.AdmissionResponse{
+func validateReview(review *admissionv1.AdmissionReview) *corev1.Secret {
+	review.Response = &admissionv1.AdmissionResponse{
 		UID: review.Request.UID,
 	}
 

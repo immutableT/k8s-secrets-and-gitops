@@ -1,0 +1,18 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: secrets-demo.kubecon-eu.info
+webhooks:
+  - name: secrets-demo.kubecon-eu.info
+    failurePolicy: Fail
+    timeoutSeconds: 5
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    rules:
+      - apiGroups:   [""]
+        apiVersions: ["v1"]
+        operations:  ["CREATE", "UPDATE"]
+        resources:   ["secrets"]
+        scope:       "Namespaced"
+    clientConfig:
+      url: "https://localhost:8083/secrets"

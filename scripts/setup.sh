@@ -35,6 +35,7 @@ rm ${ETCD_DATA_DIR:?}/* -r
   --storage-backend=etcd3 \
   --cert-dir="${KAS_CERT_DIR}"  \
   --enable-admission-plugins=MutatingAdmissionWebhook \
+  -v=5 \
   --logtostderr=true &> "${KAS_LOG}" &
 
 sleep 3

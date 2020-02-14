@@ -22,6 +22,6 @@ d8+hROP2RWFEAdwFeT9DT6R9
 -----END CERTIFICATE-----
 EOM
 
-echo "${PEM}" | openssl x509 -text -noout
-echo "${PEM}" | tr -d '\n'
-# echo "${PEM}" | base64 --wrap=0 | tr -d '\n'
+
+# echo "${PEM}" | openssl x509 -text -noout
+echo "${PEM}" | base64 --wrap=0

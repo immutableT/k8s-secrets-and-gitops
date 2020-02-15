@@ -47,7 +47,7 @@ openssl s_client \
   --server=127.0.0.1:8080 \
   apply -f ../manifests/deployment/mutating-webhook-registration.yaml
 
-go build ../cmd/webhook
+go build -o ../cmd/webhook/webhook ../cmd/webhook
 ../cmd/webhook/webhook \
   --secure-port="${WEB_HOOK_PORT}" \
   --cert-dir="${WEB_HOOK_CERT_DIR}"  &> "${WEB_HOOK_LOG}" &

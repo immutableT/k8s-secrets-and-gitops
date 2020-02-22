@@ -17,12 +17,14 @@ limitations under the License.
 package admission
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/kr/pretty"
+	"gomodules.xyz/jsonpatch/v2"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -35,9 +37,10 @@ import (
 )
 
 var (
-	scheme    = runtime.NewScheme()
-	codecs    = serializer.NewCodecFactory(scheme)
-	reviewGVK = admissionv1.SchemeGroupVersion.WithKind("AdmissionReview")
+	scheme            = runtime.NewScheme()
+	codecs            = serializer.NewCodecFactory(scheme)
+	reviewGVK         = admissionv1.SchemeGroupVersion.WithKind("AdmissionReview")
+	jsonPatchResponse = admissionv1.PatchTypeJSONPatch
 )
 
 func init() {
@@ -53,30 +56,47 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 		responsewriters.InternalError(w, req, err)
 		return
 	}
-	klog.Infof("Received request with an AdmissionReview object %v", pretty.Sprint(review))
+	klog.V(1).Infof("Received request with an AdmissionReview object %v", pretty.Sprint(review))
 
-	secret, err := validateReview(review)
+	secretToPatch, err := secretToReview(review)
 	if err != nil {
 		responsewriters.InternalError(w, req, err)
 		return
 	}
-	klog.Infof("AdmissionReview request contains a valid secret %v", pretty.Sprint(secret))
+	klog.Infof("AdmissionReview request contains a valid secret %v", pretty.Sprint(secretToPatch))
 
-	review.Response.UID = review.Request.UID
+	review.Response = &admissionv1.AdmissionResponse{
+		UID:       review.Request.UID,
+		PatchType: &jsonPatchResponse,
+	}
 
-	if review.Response.Allowed == false {
-		responsewriters.WriteObjectNegotiated(codecs, nil, gvk.GroupVersion(), w, req, http.StatusOK, review)
+	beforePatch := review.Request.Object.Raw
+	var afterPatch []byte
+
+	for k, v := range secretToPatch.Data {
+		// TODO (immutableT) Add logic to detect encrypted values.
+		// TODO (immutableT) Add logic to decrypt values.
+		secretToPatch.Data[k] = []byte("foo")
+		klog.Infof("Patching k:%v, v: %v", k, v)
+	}
+
+	afterPatch, err = json.Marshal(secretToPatch)
+	if err != nil {
+		responsewriters.InternalError(w, req, fmt.Errorf("unexpected encoding error: %v", err))
 		return
 	}
 
-	for k, v := range secret.Data {
-		// TODO (immutableT) Add logic to detect encrypted values.
-		// TODO (immutableT) Add logic to decrypt values.
-		klog.Infof("Processing k:%v, v: %v", k, v)
+	patch, err := jsonpatch.CreatePatch(beforePatch, afterPatch)
+	if err != nil {
+		responsewriters.InternalError(w, req, fmt.Errorf("unexpected diff error: %v", err))
+		return
 	}
-
-	// TODO(immutableT) Generate Json path - this is what has to be attached to the response.
-	// See github.com/appscode/jsonpatch or k8s.io/client-go/util/jsonpath/jsonpath
+	klog.Infof("Generated patch: %v", patch)
+	review.Response.Patch, err = json.Marshal(patch)
+	if err != nil {
+		responsewriters.InternalError(w, req, fmt.Errorf("unexpected patch encoding error: %v", err))
+		return
+	}
 
 	review.Response.Allowed = true
 	responsewriters.WriteObjectNegotiated(codecs, nil, gvk.GroupVersion(), w, req, http.StatusOK, review)
@@ -109,7 +129,7 @@ func validateRequest(req *http.Request) (*admissionv1.AdmissionReview, *schema.G
 	return review, gvk, nil
 }
 
-func validateReview(review *admissionv1.AdmissionReview) (*corev1.Secret, error) {
+func secretToReview(review *admissionv1.AdmissionReview) (*corev1.Secret, error) {
 	if review.Request.Object.Object == nil {
 		var err error
 		review.Request.Object.Object, _, err = codecs.UniversalDeserializer().Decode(review.Request.Object.Raw, nil, nil)

@@ -17,7 +17,7 @@ WEB_HOOK_LOG="../logs/webhook.log"
 PORTS=("${ETCD_PORT}" "${KAS_SECURE_PORT}" "${WEB_HOOK_PORT}")
 for p in "${PORTS[@]}"; do
   if lsof -ti:"${p}"; then
-    lsof -ti:${p} | xargs kill -9
+    lsof -ti:"${p}" | xargs kill -9
   fi
 done
 
@@ -26,8 +26,7 @@ rm ${ETCD_DATA_DIR:?}/* -r
 ../bin/etcd \
   --advertise-client-urls http://127.0.0.1:${ETCD_PORT} \
   --data-dir ${ETCD_DATA_DIR} \
-  --listen-client-urls http://127.0.0.1:${ETCD_PORT} \
-  --debug &> "${ETCD_LOG}" &
+  --listen-client-urls http://127.0.0.1:${ETCD_PORT} &> "${ETCD_LOG}" &
 
 ../bin/kube-apiserver \
   --secure-port=${KAS_SECURE_PORT} \
@@ -35,7 +34,6 @@ rm ${ETCD_DATA_DIR:?}/* -r
   --storage-backend=etcd3 \
   --cert-dir="${KAS_CERT_DIR}"  \
   --enable-admission-plugins=MutatingAdmissionWebhook \
-  -v=5 \
   --logtostderr=true &> "${KAS_LOG}" &
 
 sleep 3

@@ -20,14 +20,15 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
+
+	"github.com/kr/pretty"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
@@ -45,6 +46,8 @@ func init() {
 }
 
 func Serve(w http.ResponseWriter, req *http.Request) {
+	klog.Infof("Received request %v", pretty.Sprint(req))
+
 	review, gvk, err := validateRequest(req)
 	if err != nil {
 		responsewriters.InternalError(w, req, err)
@@ -89,6 +92,8 @@ func validateRequest(req *http.Request) (*admissionv1.AdmissionReview, *schema.G
 	if !ok {
 		return nil, nil, fmt.Errorf("unexpected GroupVersionKind: %s", gvk)
 	}
+	klog.Infof("Decoded an AdmissionReview object: %s", pretty.Sprint(review))
+
 	if review.Request == nil {
 		return nil, nil, errors.New("unexpected nil request")
 	}

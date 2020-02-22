@@ -42,6 +42,7 @@ var (
 
 func init() {
 	utilruntime.Must(admissionv1.AddToScheme(scheme))
+	utilruntime.Must(corev1.AddToScheme(scheme))
 }
 
 func Serve(w http.ResponseWriter, req *http.Request) {

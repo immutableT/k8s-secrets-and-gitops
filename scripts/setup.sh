@@ -21,7 +21,7 @@ for p in "${PORTS[@]}"; do
   fi
 done
 
-rm ${ETCD_DATA_DIR:?}/* -r
+rm ${ETCD_DATA_DIR:?}/* -r || true
 
 ../bin/etcd \
   --advertise-client-urls http://127.0.0.1:${ETCD_PORT} \
@@ -37,9 +37,9 @@ rm ${ETCD_DATA_DIR:?}/* -r
   --logtostderr=true &> "${KAS_LOG}" &
 
 sleep 3
-openssl s_client \
-  -connect 127.0.0.1:${KAS_SECURE_PORT} \
-  -CAfile ${KAS_CERT_DIR}/apiserver.crt <<< 'Q'
+#openssl s_client \
+#  -connect 127.0.0.1:${KAS_SECURE_PORT} \
+#  -CAfile ${KAS_CERT_DIR}/apiserver.crt <<< 'Q'
 
 ../bin/kubectl \
   --server=127.0.0.1:8080 \
@@ -51,9 +51,9 @@ go build -o ../cmd/webhook/webhook ../cmd/webhook
   --cert-dir="${WEB_HOOK_CERT_DIR}"  &> "${WEB_HOOK_LOG}" &
 
 sleep 2
-openssl s_client \
-  -connect 127.0.0.1:${WEB_HOOK_PORT} \
-  -CAfile ${WEB_HOOK_CERT_DIR}/secrets-decryption-webhook.crt <<< 'Q'
+#openssl s_client \
+#  -connect 127.0.0.1:${WEB_HOOK_PORT} \
+#  -CAfile ${WEB_HOOK_CERT_DIR}/secrets-decryption-webhook.crt <<< 'Q'
 
 ../bin/kubectl \
   --server=127.0.0.1:8080 \

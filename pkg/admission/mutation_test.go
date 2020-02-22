@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	admissionv1 "k8s.io/api/admission/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestMutation(t *testing.T) {
@@ -39,20 +38,8 @@ func TestMutation(t *testing.T) {
 			request: &admissionv1.AdmissionReview{
 				Request: &admissionv1.AdmissionRequest{},
 			},
-			response: &admissionv1.AdmissionReview{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       reviewGVK.Kind,
-					APIVersion: reviewGVK.GroupVersion().String(),
-				},
-				Request: &admissionv1.AdmissionRequest{},
-				Response: &admissionv1.AdmissionResponse{
-					Result: &metav1.Status{
-						Message: "Request.Object.Object is nil, and the attempt to deserialize Request.Object.Raw failed with the error: Object 'Kind' is missing in ''",
-						Status:  metav1.StatusFailure,
-					},
-				},
-			},
-			wantStatusCode: http.StatusOK,
+			wantError:      `Internal Server Error: "/secrets": Request.Object.Object is nil, and the attempt to deserialize Request.Object.Raw failed with the error: Object 'Kind' is missing in ''`,
+			wantStatusCode: http.StatusInternalServerError,
 		},
 		{
 			desc: "AdmissionRequest with empty Object",
@@ -62,24 +49,8 @@ func TestMutation(t *testing.T) {
 					Object: runtime.RawExtension{},
 				},
 			},
-			response: &admissionv1.AdmissionReview{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       reviewGVK.Kind,
-					APIVersion: reviewGVK.GroupVersion().String(),
-				},
-				Request: &admissionv1.AdmissionRequest{
-					UID:    "705ab4f5-6393-11e8-b7cc-42010a800002",
-					Object: runtime.RawExtension{},
-				},
-				Response: &admissionv1.AdmissionResponse{
-					UID: "705ab4f5-6393-11e8-b7cc-42010a800002",
-					Result: &metav1.Status{
-						Message: "Request.Object.Object is nil, and the attempt to deserialize Request.Object.Raw failed with the error: Object 'Kind' is missing in ''",
-						Status:  metav1.StatusFailure,
-					},
-				},
-			},
-			wantStatusCode: http.StatusOK,
+			wantError:      `Internal Server Error: "/secrets": Request.Object.Object is nil, and the attempt to deserialize Request.Object.Raw failed with the error: Object 'Kind' is missing in ''`,
+			wantStatusCode: http.StatusInternalServerError,
 		},
 	}
 

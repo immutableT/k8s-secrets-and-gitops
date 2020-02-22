@@ -26,7 +26,6 @@ import (
 
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -46,15 +45,24 @@ func init() {
 }
 
 func Serve(w http.ResponseWriter, req *http.Request) {
-	klog.Infof("Received request %v", pretty.Sprint(req))
+	klog.V(4).Infof("Received request %v", pretty.Sprint(req))
 
 	review, gvk, err := validateRequest(req)
 	if err != nil {
 		responsewriters.InternalError(w, req, err)
 		return
 	}
+	klog.Infof("Received request with an AdmissionReview object %v", pretty.Sprint(review))
 
-	secret := validateReview(review)
+	secret, err := validateReview(review)
+	if err != nil {
+		responsewriters.InternalError(w, req, err)
+		return
+	}
+	klog.Infof("AdmissionReview request contains a valid secret %v", pretty.Sprint(secret))
+
+	review.Response.UID = review.Request.UID
+
 	if review.Response.Allowed == false {
 		responsewriters.WriteObjectNegotiated(codecs, nil, gvk.GroupVersion(), w, req, http.StatusOK, review)
 		return
@@ -100,30 +108,19 @@ func validateRequest(req *http.Request) (*admissionv1.AdmissionReview, *schema.G
 	return review, gvk, nil
 }
 
-func validateReview(review *admissionv1.AdmissionReview) *corev1.Secret {
-	review.Response = &admissionv1.AdmissionResponse{
-		UID: review.Request.UID,
-	}
-
+func validateReview(review *admissionv1.AdmissionReview) (*corev1.Secret, error) {
 	if review.Request.Object.Object == nil {
 		var err error
 		review.Request.Object.Object, _, err = codecs.UniversalDeserializer().Decode(review.Request.Object.Raw, nil, nil)
 		if err != nil {
-			review.Response.Result = &metav1.Status{
-				Message: fmt.Sprintf("Request.Object.Object is nil, and the attempt to deserialize Request.Object.Raw failed with the error: %v", err),
-				Status:  metav1.StatusFailure,
-			}
-			return nil
+			return nil, fmt.Errorf("Request.Object.Object is nil, and the attempt to deserialize Request.Object.Raw failed with the error: %v", err)
 		}
 	}
 
-	if secret, ok := review.Request.Object.Object.(*corev1.Secret); !ok {
-		review.Response.Result = &metav1.Status{
-			Message: "AdmissionReview does not contain coverv1.Secret",
-			Status:  metav1.StatusFailure,
-		}
-		return nil
-	} else {
-		return secret
+	secret, ok := review.Request.Object.Object.(*corev1.Secret)
+	if !ok {
+		return nil, errors.New("AdmissionReview does not contain corev1.Secret")
 	}
+
+	return secret, nil
 }

@@ -60,3 +60,5 @@ sleep 2
   create secret generic my-secret-01 \
   --from-literal=username=dev-user \
   --from-literal=password=P@ssword01
+
+../bin/kubectl --server=127.0.0.1:8080 get secret my-secret-01 -o yaml

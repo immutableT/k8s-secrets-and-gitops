@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apiserver/pkg/endpoints/handlers/negotiation"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/klog"
 )
@@ -56,7 +57,7 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 		responsewriters.InternalError(w, req, err)
 		return
 	}
-	klog.V(1).Infof("Received request with an AdmissionReview object %v", pretty.Sprint(review))
+	klog.V(4).Infof("Received request with an AdmissionReview object %v", pretty.Sprint(review))
 
 	secretToPatch, err := secretToReview(review)
 	if err != nil {
@@ -99,7 +100,15 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 	}
 
 	review.Response.Allowed = true
-	responsewriters.WriteObjectNegotiated(codecs, nil, gvk.GroupVersion(), w, req, http.StatusOK, review)
+	responsewriters.WriteObjectNegotiated(
+		codecs,
+		negotiation.DefaultEndpointRestrictions,
+		gvk.GroupVersion(),
+		w,
+		req,
+		http.StatusOK,
+		review,
+	)
 }
 
 func validateRequest(req *http.Request) (*admissionv1.AdmissionReview, *schema.GroupVersionKind, error) {

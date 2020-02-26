@@ -86,6 +86,7 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 		responsewriters.InternalError(w, req, fmt.Errorf("unexpected encoding error: %v", err))
 		return
 	}
+	klog.Infof("Patched and marshalled secret: %s", afterPatch)
 
 	patch, err := jsonpatch.CreatePatch(beforePatch, afterPatch)
 	if err != nil {

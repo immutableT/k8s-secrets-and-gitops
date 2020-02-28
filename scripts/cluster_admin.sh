@@ -13,6 +13,9 @@ WEB_HOOK_PORT=8083
 WEB_HOOK_CERT_DIR='../certs/webhook'
 WEB_HOOK_LOG="../logs/webhook.log"
 
+PASSWORD_CIPHERTEXT_PATH="../cluster/secrets/db-secret.yaml"
+
+START_WEB_HOOK="${1:-true}"
 
 PORTS=("${ETCD_PORT}" "${KAS_SECURE_PORT}" "${WEB_HOOK_PORT}")
 for p in "${PORTS[@]}"; do
@@ -41,14 +44,19 @@ sleep 3
 #  -connect 127.0.0.1:${KAS_SECURE_PORT} \
 #  -CAfile ${KAS_CERT_DIR}/apiserver.crt <<< 'Q'
 
-../bin/kubectl \
+
+
+if [[ "${START_WEB_HOOK:-false}" == "true" ]]; then
+  ../bin/kubectl \
   --server=127.0.0.1:8080 \
   apply -f ../manifests/deployment/mutating-webhook-registration.yaml
 
-go build -o ../cmd/webhook/webhook ../cmd/webhook
-../cmd/webhook/webhook \
-  --secure-port="${WEB_HOOK_PORT}" \
-  --cert-dir="${WEB_HOOK_CERT_DIR}"  &> "${WEB_HOOK_LOG}" &
+  go build -o ../cmd/webhook/webhook ../cmd/webhook
+  ../cmd/webhook/webhook \
+    --secure-port="${WEB_HOOK_PORT}" \
+    --cert-dir="${WEB_HOOK_CERT_DIR}"  &> "${WEB_HOOK_LOG}" &
+fi
+
 
 sleep 2
 #openssl s_client \
@@ -57,8 +65,6 @@ sleep 2
 
 ../bin/kubectl \
   --server=127.0.0.1:8080 \
-  create secret generic my-secret-01 \
-  --from-literal=username=dev-user \
-  --from-literal=password=P@ssword01
+  apply -f "${PASSWORD_CIPHERTEXT_PATH}"
 
-../bin/kubectl --server=127.0.0.1:8080 get secret my-secret-01 -o yaml
+../bin/kubectl --server=127.0.0.1:8080 get secret db-secret -o yaml

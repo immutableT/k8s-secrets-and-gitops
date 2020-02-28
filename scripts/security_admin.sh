@@ -6,6 +6,7 @@ LOCATION="us-central1"
 KEY_RING="kubecon-eu-demo-ring"
 KEY_NAME="kubecon-eu-key"
 SA_NAME="secrets-decrypter-sa"
+PUB_KEY_PATH="../certs/cluster/key.pub"
 
 gcloud kms keys create "${KEY_NAME}" \
   --project "${PROJECT}" \
@@ -34,4 +35,4 @@ gcloud kms keys versions  \
   --location "$LOCATION" \
   --keyring "$KEY_RING" \
   --key "$KEY_NAME" \
-  --output-file ../certs/cluster/key.pub
+  --output-file "${PUB_KEY_PATH}"

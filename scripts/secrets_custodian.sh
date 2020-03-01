@@ -7,7 +7,7 @@ PASSWORD_CIPHERTEXT_PATH="../cluster/secrets/db-secret.yaml"
 
 JWE=$(echo "${PASSWORD_PLAINTEXT}" | ../bin/jose-util encrypt \
       --key "${PUB_KEY_PATH}" \
-      --alg RSA-OAEP \
+      --alg RSA-OAEP-256 \
       --enc A128CBC-HS256 \
       --full | jq . )
 echo "${JWE}"
@@ -18,7 +18,7 @@ kind: Secret
 metadata:
   name: db-secret
 type: Opaque
-data:
+stringData:
   password: |-
          ${JWE}
 EOF

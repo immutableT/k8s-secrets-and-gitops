@@ -17,6 +17,7 @@ limitations under the License.
 package admission
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"net/http"
 
 	"github.com/kr/pretty"
+	"github.com/square/go-jose"
 	"gomodules.xyz/jsonpatch/v2"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -154,4 +156,21 @@ func secretToReview(review *admissionv1.AdmissionReview) (*corev1.Secret, error)
 	}
 
 	return secret, nil
+}
+
+func shouldMutateSecret(secret *corev1.Secret) bool {
+	for _, v := range secret.Data {
+		decoded, err := base64.StdEncoding.DecodeString(string(v))
+		if err != nil {
+			// TODO(immutableT) return an error.
+			continue
+		}
+
+		jwe, err := jose.ParseEncrypted(string(decoded))
+		if err == nil {
+			klog.Infof("Found JWE envelope: %v", jwe)
+			return true
+		}
+	}
+	return false
 }

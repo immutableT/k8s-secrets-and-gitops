@@ -7,6 +7,7 @@ require (
 	github.com/gorilla/handlers v1.4.2
 	github.com/kr/pretty v0.1.0
 	github.com/spf13/pflag v1.0.5
+	github.com/square/go-jose v2.4.1+incompatible
 	gomodules.xyz/jsonpatch/v2 v2.0.1
 	k8s.io/api v0.17.2
 	k8s.io/apimachinery v0.17.2

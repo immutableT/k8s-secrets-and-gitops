@@ -17,7 +17,6 @@ limitations under the License.
 package admission
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -77,10 +76,13 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 	var afterPatch []byte
 
 	for k, v := range secretToPatch.Data {
-		// TODO (immutableT) Add logic to detect encrypted values.
-		// TODO (immutableT) Add logic to decrypt values.
-		secretToPatch.Data[k] = []byte("foo")
-		klog.Infof("Patching k:%v, v: %v", k, v)
+		if shouldMutate(v) {
+			// TODO (immutableT) Add logic to decrypt values.
+			secretToPatch.Data[k] = []byte("foo")
+			klog.Infof("Patching k:%v, v: %v", k, pretty.Sprint(v))
+		} else {
+			klog.Infof("Skipping key: %v with value %v, as it does not seem to be enveloped", k, v)
+		}
 	}
 
 	afterPatch, err = json.Marshal(secretToPatch)
@@ -88,7 +90,7 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 		responsewriters.InternalError(w, req, fmt.Errorf("unexpected encoding error: %v", err))
 		return
 	}
-	klog.Infof("Patched and marshalled secret: %s", afterPatch)
+	klog.Infof("Patched and marshalled secret: %s", pretty.Sprint(afterPatch))
 
 	patch, err := jsonpatch.CreatePatch(beforePatch, afterPatch)
 	if err != nil {
@@ -158,19 +160,12 @@ func secretToReview(review *admissionv1.AdmissionReview) (*corev1.Secret, error)
 	return secret, nil
 }
 
-func shouldMutateSecret(secret *corev1.Secret) bool {
-	for _, v := range secret.Data {
-		decoded, err := base64.StdEncoding.DecodeString(string(v))
-		if err != nil {
-			// TODO(immutableT) return an error.
-			continue
-		}
-
-		jwe, err := jose.ParseEncrypted(string(decoded))
-		if err == nil {
-			klog.Infof("Found JWE envelope: %v", jwe)
-			return true
-		}
+func shouldMutate(secret []byte) bool {
+	jwe, err := jose.ParseEncrypted(string(secret))
+	if err == nil {
+		klog.Infof("Found JWE envelope: %v", pretty.Sprint(jwe))
+		return true
 	}
+
 	return false
 }

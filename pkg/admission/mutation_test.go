@@ -2,12 +2,10 @@ package admission
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"github.com/google/go-cmp/cmp"
 	"github.com/kr/pretty"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
@@ -57,7 +55,7 @@ func TestMutation(t *testing.T) {
 			wantStatusCode: http.StatusInternalServerError,
 		},
 		{
-			desc: "Valid AdmissionRequest",
+			desc: "valid un-enveloped AdmissionRequest should not generate a patch",
 			request: &admissionv1.AdmissionReview{
 				TypeMeta: v1.TypeMeta{Kind: "AdmissionReview", APIVersion: "admission.k8s.io/v1"},
 				Request: &admissionv1.AdmissionRequest{
@@ -87,7 +85,7 @@ func TestMutation(t *testing.T) {
 				UID:       "07d88007-f4e9-4a15-8455-ef1685040976",
 				Allowed:   true,
 				Result:    (*v1.Status)(nil),
-				Patch:     []byte{0x5b, 0x7b, 0x22, 0x6f, 0x70, 0x22, 0x3a, 0x22, 0x72, 0x65, 0x70, 0x6c, 0x61, 0x63, 0x65, 0x22, 0x2c, 0x22, 0x70, 0x61, 0x74, 0x68, 0x22, 0x3a, 0x22, 0x2f, 0x64, 0x61, 0x74, 0x61, 0x2f, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x22, 0x2c, 0x22, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x22, 0x3a, 0x22, 0x5a, 0x6d, 0x39, 0x76, 0x22, 0x7d, 0x2c, 0x7b, 0x22, 0x6f, 0x70, 0x22, 0x3a, 0x22, 0x72, 0x65, 0x70, 0x6c, 0x61, 0x63, 0x65, 0x22, 0x2c, 0x22, 0x70, 0x61, 0x74, 0x68, 0x22, 0x3a, 0x22, 0x2f, 0x64, 0x61, 0x74, 0x61, 0x2f, 0x75, 0x73, 0x65, 0x72, 0x6e, 0x61, 0x6d, 0x65, 0x22, 0x2c, 0x22, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x22, 0x3a, 0x22, 0x5a, 0x6d, 0x39, 0x76, 0x22, 0x7d, 0x5d},
+				Patch:     []byte("[]"),
 				PatchType: &jsonPatchResponse,
 			},
 			wantStatusCode: http.StatusOK,
@@ -154,36 +152,32 @@ func TestMutation(t *testing.T) {
 func TestShouldMutate(t *testing.T) {
 	testCases := []struct {
 		desc string
-		in   string
+		in   []byte
 		want bool
 	}{
 		{
 			desc: "valid jwe envelope",
-			in: base64.StdEncoding.EncodeToString([]byte(`
+			in: []byte(`
          {
           "protected": "eyJhbGciOiJSU0EtT0FFUC0yNTYiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0",
           "encrypted_key": "W55XJrzI_rxTnBBtMK5Alg-WCwz3tFBL4JCQTT26o0VT8NdncbfQ_ksonHb3OVjOQieCeCMjNAXTsB2Vv6WkyhElhiRt4TjqGhQSGyBWHtd5o3NVdcHrRXMy5HRhKMJP_idBRr21IxoWtXTaELYLkEqDnANHVZkkvRl69nA3OvKKe4C5n9LQ9nYfwQdYBDwvKiVbGOIRbiTAWFUmAJUzui6YemRAbbv_Q6D2yVV4bK8pSwYuJ9_Hg7Q66lrRgayZJbhRrWAGCMXnMvWhCWrapvQp_oScTh1wanm4mB9deZpkEO-nJp0bloIrYAReZ1BAe05FyBtQUkNyNnB0ATuONmObmVP3aml6aVimgZE6Xsef9K2khofZuy0j6GrUMBf74bIc0ZwLI8nBz6otuQe27UD9mxlkDzZsPoJ-H2CDDkoO-Bu1zp0yfr0uQ0PQ8BlpK5krqBeiqk5jjgshIhl_qj-w2Aa8r-OdpKgny-7g6NpL6QMkYRpN1RN2lm2lUBsnKilRSdWgRkgj_2XneabQnwRYJfFF2PumXnTfcReKDHbd9SjCynxwRUg09uKQKuyyDtcd1YXkSWYeSOhSAZ0qdIPrvFdmsQAIVGBlZGr3Z7xgrzgq9Zc_j7YPWY2KkkTDYPGEhmVV5MtSsgOirU3kWJ6QjLowW16QnQXsNtnfDFQ",
           "iv": "ZKD5DLUyJVhG9T8xnSnMEQ",
           "ciphertext": "JKLXYc7C9ePhFlI53hlnNA",
           "tag": "iZnl_VDdhjMPv6CmmvhEuw"
-         }`)),
+         }`),
 			want: true,
 		},
 		{
 			desc: "no jwe envelope",
-			in:   base64.StdEncoding.EncodeToString([]byte("P@ssword01")),
+			in:   []byte("P@ssword01"),
 			want: false,
 		},
+		// TODO(immutableT) Add tests for error conditions.
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.desc, func(t *testing.T) {
-			s := &corev1.Secret{
-				Data: map[string][]byte{
-					"password": []byte(tt.in),
-				},
-			}
-			got := shouldMutateSecret(s)
+			got := shouldMutate([]byte(tt.in))
 			if got != tt.want {
 				t.Fatalf("Got %v want %v", got, tt.want)
 			}

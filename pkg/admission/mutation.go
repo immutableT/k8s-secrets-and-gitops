@@ -76,7 +76,8 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 	var afterPatch []byte
 
 	for k, v := range secretToPatch.Data {
-		if shouldMutate(v) {
+		_, ok := shouldMutate(v)
+		if ok {
 			// TODO (immutableT) Add logic to decrypt values.
 			secretToPatch.Data[k] = []byte("foo")
 			klog.Infof("Patching k:%v, v: %v", k, pretty.Sprint(v))
@@ -160,12 +161,12 @@ func secretToReview(review *admissionv1.AdmissionReview) (*corev1.Secret, error)
 	return secret, nil
 }
 
-func shouldMutate(secret []byte) bool {
+func shouldMutate(secret []byte) (*jose.JSONWebEncryption, bool) {
 	jwe, err := jose.ParseEncrypted(string(secret))
 	if err == nil {
 		klog.Infof("Found JWE envelope: %v", pretty.Sprint(jwe))
-		return true
+		return jwe, true
 	}
 
-	return false
+	return nil, false
 }

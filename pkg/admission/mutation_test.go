@@ -177,9 +177,9 @@ func TestShouldMutate(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.desc, func(t *testing.T) {
-			got := shouldMutate([]byte(tt.in))
-			if got != tt.want {
-				t.Fatalf("Got %v want %v", got, tt.want)
+			_, ok := shouldMutate(tt.in)
+			if ok != tt.want {
+				t.Fatalf("Got %v want %v", ok, tt.want)
 			}
 		})
 	}

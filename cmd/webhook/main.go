@@ -17,76 +17,22 @@ limitations under the License.
 package main
 
 import (
-	"github.com/gorilla/handlers"
-	"github.com/spf13/pflag"
-	"k8s.io/apiserver/pkg/server"
-	"k8s.io/apiserver/pkg/server/options"
-	"k8s.io/component-base/cli/globalflag"
+	"log"
 	"net/http"
-	"os"
-	"time"
 
 	"github.com/immutableT/k8s-secrets-and-gitops/pkg/admission"
 )
 
-func NewDefaultOptions() *Options {
-	o := &Options{
-		*options.NewSecureServingOptions(),
-	}
-	o.SecureServing.ServerCert.PairName = "secrets-decryption-webhook"
-	return o
-}
-
-type Options struct {
-	SecureServing options.SecureServingOptions
-}
-
-type Config struct {
-	SecureServing *server.SecureServingInfo
-}
-
-func (o *Options) AddFlags(fs *pflag.FlagSet) {
-	o.SecureServing.AddFlags(fs)
-}
-
-func (o *Options) Config() (*Config, error) {
-	if err := o.SecureServing.MaybeDefaultWithSelfSignedCerts("0.0.0.0", nil, nil); err != nil {
-		return nil, err
-	}
-
-	c := &Config{}
-
-	if err := o.SecureServing.ApplyTo(&c.SecureServing); err != nil {
-		return nil, err
-	}
-
-	return c, nil
-}
-
 func main() {
-	opt := NewDefaultOptions()
-	fs := pflag.NewFlagSet("secrets-decryption-webhook", pflag.ExitOnError)
-	globalflag.AddGlobalFlags(fs, "secrets-decryption-webhook")
-	opt.AddFlags(fs)
-	if err := fs.Parse(os.Args); err != nil {
-		panic(err)
-	}
 
-	// create runtime config
-	cfg, err := opt.Config()
+	http.HandleFunc("/secrets", admission.Serve)
+	err := http.ListenAndServeTLS(
+		":8083",
+		"../certs/webhook/secrets-decryption-webhook.crt",
+		"../certs/webhook/secrets-decryption-webhook.key",
+		nil)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	stopCh := server.SetupSignalHandler()
-
-	mux := http.NewServeMux()
-	mux.Handle("/secrets", http.HandlerFunc(admission.Serve))
-
-	// run server
-	if doneCh, err := cfg.SecureServing.Serve(handlers.LoggingHandler(os.Stdout, mux), time.Second*30, stopCh); err != nil {
-		panic(err)
-	} else {
-		<-doneCh
-	}
 }

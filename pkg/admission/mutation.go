@@ -27,6 +27,8 @@ import (
 	"github.com/square/go-jose"
 	"gomodules.xyz/jsonpatch/v2"
 
+	"github.com/immutableT/k8s-secrets-and-gitops/pkg/kms/google"
+
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,6 +45,14 @@ var (
 	codecs            = serializer.NewCodecFactory(scheme)
 	reviewGVK         = admissionv1.SchemeGroupVersion.WithKind("AdmissionReview")
 	jsonPatchResponse = admissionv1.PatchTypeJSONPatch
+
+	kmsClient = &google.Client{
+		Project:    "alextc-gke-dev",
+		Location:   "us-central1",
+		KeyRing:    "kubecon-eu-demo-ring",
+		KeyName:    "kubecon-eu-key",
+		KeyVersion: 1,
+	}
 )
 
 func init() {
@@ -76,22 +86,28 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 	var afterPatch []byte
 
 	for k, v := range secretToPatch.Data {
-		_, ok := shouldMutate(v)
+		jwe, ok := shouldMutate(v)
 		if ok {
-			// TODO (immutableT) Add logic to decrypt values.
-			secretToPatch.Data[k] = []byte("foo")
+			plainText, err := jwe.Decrypt(kmsClient)
+			if err != nil {
+				responsewriters.InternalError(w, req, fmt.Errorf("failed to decrypt DEK: %v", err))
+				return
+			}
+			klog.Infof("DEK: %v", plainText)
+
+			secretToPatch.Data[k] = plainText
 			klog.Infof("Patching k:%v, v: %v", k, pretty.Sprint(v))
 		} else {
 			klog.Infof("Skipping key: %v with value %v, as it does not seem to be enveloped", k, v)
 		}
 	}
+	klog.Infof("Patched and marshalled secret: %s", pretty.Sprint(secretToPatch))
 
 	afterPatch, err = json.Marshal(secretToPatch)
 	if err != nil {
 		responsewriters.InternalError(w, req, fmt.Errorf("unexpected encoding error: %v", err))
 		return
 	}
-	klog.Infof("Patched and marshalled secret: %s", pretty.Sprint(afterPatch))
 
 	patch, err := jsonpatch.CreatePatch(beforePatch, afterPatch)
 	if err != nil {

@@ -3,11 +3,16 @@ package google
 import (
 	"context"
 	"fmt"
+
+	"k8s.io/klog"
+
 	"github.com/square/go-jose"
 
 	kms "cloud.google.com/go/kms/apiv1"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 )
+
+var _ jose.OpaqueKeyDecrypter = &Client{}
 
 type Client struct {
 	Project    string
@@ -50,5 +55,6 @@ func (c *Client) decryptAsymmetric(ciphertext []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt ciphertext: %v", err)
 	}
+	klog.Infof("Plaintext: %v", result.Plaintext)
 	return result.Plaintext, nil
 }

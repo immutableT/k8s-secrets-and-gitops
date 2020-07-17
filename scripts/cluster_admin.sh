@@ -13,6 +13,11 @@ WEB_HOOK_PORT=8083
 WEB_HOOK_CERT_DIR='../certs/webhook'
 WEB_HOOK_LOG="../logs/webhook.log"
 
+#VM_NAME="webhook"
+#gcloud compute instances create "${VM_NAME}" \
+#    --service-account "${SA}" \
+#    --scopes https://www.googleapis.com/auth/cloud-platform
+
 PASSWORD_CIPHERTEXT_PATH="../cluster/secrets/db-secret.yaml"
 
 START_WEB_HOOK="${1:-true}"
@@ -43,8 +48,6 @@ sleep 3
 #openssl s_client \
 #  -connect 127.0.0.1:${KAS_SECURE_PORT} \
 #  -CAfile ${KAS_CERT_DIR}/apiserver.crt <<< 'Q'
-
-
 
 if [[ "${START_WEB_HOOK:-false}" == "true" ]]; then
   ../bin/kubectl \

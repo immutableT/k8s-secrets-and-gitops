@@ -1,21 +1,22 @@
 
-##Integrating management of K8S Secrets into GitOps workflow via a decryption webhook.
-###Intro
+# Integrating management of K8S Secrets into GitOps workflow via a decryption webhook.
+
+## Intro
 GitOps (or operations by git commits), in the context of k8s, is the approach where a Git repository provides a source of truth for clusters’ configuration. Thus enabling facilities such as version control, history, peer review, and rollback of clusters’ configuration to happen through Git. The inclusion of K8S Secrets (and other security sensitive K8S resources) into GitOps workflows poses some challenges - we should not store secrets in clear text in Git (even if Git repo is private). This document outlines a strategy of how to securely store K8S Secrets in version control repositories such as Git.
 
-###Personas
+## Personas
 There are three personas involved in the below described workflows (though depending on the environment all of these personas may be manifested by a single user):
 * KMS Manager - responsible for creating and managing crypto key resources in KMS 
 * Secrets Custodian - manages sensitive data (passwords, api keys, etc). It is not assumed that Secrets Custodians have any relationship to cluster administration, nor are they familiar with Kubernetes tools. For example, an HR Oracle DBA (Secrets Custodian - owns passwords for HR database) who is asked to provide a password for k8s project.
 * Cluster Administrator - deploys and manages k8s clusters.
 
 
-###The Approach
+## The Approach
 This approach mimics the encrypted email workflow where senders encrypt messages using the public key of the recipient. Secure exchange of messages hinges on the use of a common standard for the serialization of encrypted/signed messages, so that the process is independent of email client/provider.
 
 Three standards were reviewed and JSON Web Encryption ([JWE](https://tools.ietf.org/html/rfc7516)) appears to be the best fit for this scenario. For the analysis of reviewed standards and the rationale for the selection of JWE see appendix 3.
 
-#### Delegate decryption of confidential fields to KMS webhook
+### Delegate decryption of confidential fields to KMS webhook
 The responsibility of decrypting confidential fields within incoming requests for creating secrets will be delegated to a [mutating webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/). Such a webhook will expect that incoming secrets (specifically the confidential part) may have been encrypted outside Kubernetes (see example below).
 
 ```yaml

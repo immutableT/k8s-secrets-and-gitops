@@ -17,15 +17,33 @@ limitations under the License.
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 
 	"github.com/immutableT/k8s-secrets-and-gitops/pkg/admission"
+	"github.com/immutableT/k8s-secrets-and-gitops/pkg/kms/google"
 )
 
 func main() {
+	var (
+		project  = flag.String("project", "", "GCP Project where Cloud KMS key is located.")
+		location = flag.String("location", "", "Location where Cloud KMS key-ring is located.")
+		ring     = flag.String("ring", "", "Key-Ring where Cloud KMS key is stored.")
+		key      = flag.String("key", "", "Name of the Cloud KMS key.")
+		ver      = flag.Int("ver", 1, "Key's version.")
+	)
 
-	http.HandleFunc("/secrets", admission.Serve)
+	h := &admission.WebHook{
+		KMSClient: &google.Client{
+			Project:    *project,
+			Location:   *location,
+			KeyRing:    *ring,
+			KeyName:    *key,
+			KeyVersion: *ver,
+		},
+	}
+	http.HandleFunc("/secrets", h.Serve)
 	err := http.ListenAndServeTLS(
 		":8083",
 		"../certs/webhook/secrets-decryption-webhook.crt",

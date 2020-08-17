@@ -45,14 +45,6 @@ var (
 	codecs            = serializer.NewCodecFactory(scheme)
 	reviewGVK         = admissionv1.SchemeGroupVersion.WithKind("AdmissionReview")
 	jsonPatchResponse = admissionv1.PatchTypeJSONPatch
-
-	kmsClient = &google.Client{
-		Project:    "alextc-gke-dev",
-		Location:   "us-central1",
-		KeyRing:    "kubecon-eu-demo-ring",
-		KeyName:    "kubecon-eu-key",
-		KeyVersion: 1,
-	}
 )
 
 func init() {
@@ -60,7 +52,12 @@ func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
 }
 
-func Serve(w http.ResponseWriter, req *http.Request) {
+type WebHook struct {
+	// TODO (immutableT) extract an interface to support different vendors.
+	KMSClient *google.Client
+}
+
+func (h *WebHook) Serve(w http.ResponseWriter, req *http.Request) {
 	klog.V(4).Infof("Received request %v", pretty.Sprint(req))
 
 	review, gvk, err := validateRequest(req)
@@ -88,7 +85,7 @@ func Serve(w http.ResponseWriter, req *http.Request) {
 	for k, v := range secretToPatch.Data {
 		jwe, ok := shouldMutate(v)
 		if ok {
-			plainText, err := jwe.Decrypt(kmsClient)
+			plainText, err := jwe.Decrypt(h.KMSClient)
 			if err != nil {
 				responsewriters.InternalError(w, req, fmt.Errorf("failed to decrypt DEK: %v", err))
 				return

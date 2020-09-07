@@ -4,6 +4,9 @@
 ## Intro
 GitOps (or operations by git commits), in the context of k8s, is the approach where a Git repository provides a source of truth for clusters’ configuration. Thus enabling facilities such as version control, history, peer review, and rollback of clusters’ configuration to happen through Git. The inclusion of K8S Secrets (and other security sensitive K8S resources) into GitOps workflows poses some challenges - we should not store secrets in clear text in Git (even if Git repo is private). This document outlines a strategy of how to securely store K8S Secrets in version control repositories such as Git.
 
+[Kubecon 2020 EU Talk: Using Kubernetes Secrets in GitOps Workflow Securely - Seth Vargo & Alex Tcherniakhovski](https://youtu.be/-k6HEXaE75k)
+
+
 ## Personas
 There are three personas involved in the below described workflows (though depending on the environment all of these personas may be manifested by a single user):
 * KMS Manager - responsible for creating and managing crypto key resources in KMS 
